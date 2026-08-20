@@ -1,10 +1,14 @@
 // bb-plugin-noema — federated agentic memory for BB.
 //
+// Bridges BB threads into **your own** Noema cortex over Noema's Streamable
+// HTTP MCP endpoint (default http://127.0.0.1:3004). Not a hosted service —
+// you run the Noema server yourself (`noema serve --transport http`).
+//
 // Registers six native agent tools that mirror Hermes's Noema access:
 // noema_search, noema_remember, noema_recall, noema_list, noema_update, noema_lineage.
 //
-// Tools call Noema's Streamable HTTP MCP endpoint (≥0.20.0) with full session
-// lifecycle management (initialize, re-initialize on 404 expiry).
+// Tools call the configured Streamable HTTP MCP endpoint (≥0.20.0) with full
+// session lifecycle management (initialize, re-initialize on 404 expiry).
 import { type BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 
@@ -161,12 +165,7 @@ export default async function plugin(bb: BbPluginApi) {
       type: "string",
       label: "Noema HTTP URL",
       default: process.env.NOEMA_HTTP_URL ?? "http://127.0.0.1:3004",
-      description: "Streamable HTTP MCP endpoint (noema serve --transport http)",
-    },
-    noemaCortex: {
-      type: "string",
-      label: "Cortex name",
-      default: process.env.NOEMA_CORTEX ?? "coding-agents",
+      description: "Your local Noema server's Streamable HTTP MCP endpoint (noema serve --transport http)",
     },
     noemaAccessKey: {
       type: "string",
@@ -176,16 +175,26 @@ export default async function plugin(bb: BbPluginApi) {
     },
   });
 
-  const { noemaHttpUrl, noemaCortex, noemaAccessKey } = await settings.get();
-  const client = new NoemaClient(noemaHttpUrl, noemaAccessKey || undefined);
+  let { noemaHttpUrl, noemaAccessKey } = await settings.get();
 
-  bb.log.info(`Noema client → ${noemaHttpUrl} (cortex: ${noemaCortex})`);
+  // Re-read settings on change without a plugin reload.
+  settings.onChange((next) => {
+    noemaHttpUrl = next.noemaHttpUrl;
+    noemaAccessKey = next.noemaAccessKey;
+    // Rebuild the client so new URL/key take effect immediately.
+    client = new NoemaClient(noemaHttpUrl, noemaAccessKey || undefined);
+    bb.log.info(`[noema] server URL updated → ${noemaHttpUrl}`);
+  });
+
+  let client = new NoemaClient(noemaHttpUrl, noemaAccessKey || undefined);
+
+  bb.log.info(`Noema client → ${noemaHttpUrl} (local Noema server)`);
 
   // ── Register agent tools ─────────────────────────────────────────
 
   bb.agents.registerTool({
     name: "noema_search",
-    description: `Search your Noema memory for relevant traces. Returns matching memories ranked by relevance (FTS5 full-text search). Cortex: ${noemaCortex}.`,
+    description: `Search your Noema memory for relevant traces. Returns matching memories ranked by relevance (FTS5 full-text search)`,
     parameters: searchSchema,
     async execute({ query }, { threadId }) {
       bb.log.info(`[noema] thread ${threadId}: noema_search '${query}'`);
@@ -196,7 +205,7 @@ export default async function plugin(bb: BbPluginApi) {
 
   bb.agents.registerTool({
     name: "noema_remember",
-    description: `Create a new memory trace in Noema. Choose a type that reflects the intent: fact, decision, preference, context, skill, intent, observation, or note. Cortex: ${noemaCortex}.`,
+    description: `Create a new memory trace in Noema. Choose a type that reflects the intent: fact, decision, preference, context, skill, intent, observation, or note`,
     parameters: rememberSchema,
     async execute(args) {
       // Strip undefined optional fields so Noema doesn't receive them
@@ -211,7 +220,7 @@ export default async function plugin(bb: BbPluginApi) {
 
   bb.agents.registerTool({
     name: "noema_recall",
-    description: `Read a specific Noema memory trace by ID, including its full body. Cortex: ${noemaCortex}.`,
+    description: `Read a specific Noema memory trace by ID, including its full body`,
     parameters: recallSchema,
     async execute({ id }) {
       const result = await client.callTool("noema_recall", { id });
@@ -221,7 +230,7 @@ export default async function plugin(bb: BbPluginApi) {
 
   bb.agents.registerTool({
     name: "noema_list",
-    description: `List Noema memory traces, optionally filtered by type, author, tag, or origin. Cortex: ${noemaCortex}.`,
+    description: `List Noema memory traces, optionally filtered by type, author, tag, or origin`,
     parameters: listSchema,
     async execute(args) {
       const clean: Record<string, unknown> = {};
@@ -235,7 +244,7 @@ export default async function plugin(bb: BbPluginApi) {
 
   bb.agents.registerTool({
     name: "noema_update",
-    description: `Update fields of an existing Noema memory trace. Only provided fields are changed. Cortex: ${noemaCortex}.`,
+    description: `Update fields of an existing Noema memory trace. Only provided fields are changed`,
     parameters: updateSchema,
     async execute(args) {
       const clean: Record<string, unknown> = {};
@@ -249,7 +258,7 @@ export default async function plugin(bb: BbPluginApi) {
 
   bb.agents.registerTool({
     name: "noema_lineage",
-    description: `Show the derivation graph for a Noema trace: what it was derived from and what derives from it. Cortex: ${noemaCortex}.`,
+    description: `Show the derivation graph for a Noema trace: what it was derived from and what derives from it`,
     parameters: lineageSchema,
     async execute({ id }) {
       const result = await client.callTool("noema_lineage", { id });
