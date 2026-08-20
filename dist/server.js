@@ -14647,12 +14647,7 @@ async function plugin(bb) {
       type: "string",
       label: "Noema HTTP URL",
       default: process.env.NOEMA_HTTP_URL ?? "http://127.0.0.1:3004",
-      description: "Streamable HTTP MCP endpoint (noema serve --transport http)"
-    },
-    noemaCortex: {
-      type: "string",
-      label: "Cortex name",
-      default: process.env.NOEMA_CORTEX ?? "coding-agents"
+      description: "Your local Noema server's Streamable HTTP MCP endpoint (noema serve --transport http)"
     },
     noemaAccessKey: {
       type: "string",
@@ -14661,12 +14656,18 @@ async function plugin(bb) {
       secret: true
     }
   });
-  const { noemaHttpUrl, noemaCortex, noemaAccessKey } = await settings.get();
-  const client = new NoemaClient(noemaHttpUrl, noemaAccessKey || void 0);
-  bb.log.info(`Noema client \u2192 ${noemaHttpUrl} (cortex: ${noemaCortex})`);
+  let { noemaHttpUrl, noemaAccessKey } = await settings.get();
+  settings.onChange((next) => {
+    noemaHttpUrl = next.noemaHttpUrl;
+    noemaAccessKey = next.noemaAccessKey;
+    client = new NoemaClient(noemaHttpUrl, noemaAccessKey || void 0);
+    bb.log.info(`[noema] server URL updated \u2192 ${noemaHttpUrl}`);
+  });
+  let client = new NoemaClient(noemaHttpUrl, noemaAccessKey || void 0);
+  bb.log.info(`Noema client \u2192 ${noemaHttpUrl} (local Noema server)`);
   bb.agents.registerTool({
     name: "noema_search",
-    description: `Search your Noema memory for relevant traces. Returns matching memories ranked by relevance (FTS5 full-text search). Cortex: ${noemaCortex}.`,
+    description: `Search your Noema memory for relevant traces. Returns matching memories ranked by relevance (FTS5 full-text search)`,
     parameters: searchSchema,
     async execute({ query }, { threadId }) {
       bb.log.info(`[noema] thread ${threadId}: noema_search '${query}'`);
@@ -14676,7 +14677,7 @@ async function plugin(bb) {
   });
   bb.agents.registerTool({
     name: "noema_remember",
-    description: `Create a new memory trace in Noema. Choose a type that reflects the intent: fact, decision, preference, context, skill, intent, observation, or note. Cortex: ${noemaCortex}.`,
+    description: `Create a new memory trace in Noema. Choose a type that reflects the intent: fact, decision, preference, context, skill, intent, observation, or note`,
     parameters: rememberSchema,
     async execute(args) {
       const clean = {};
@@ -14689,7 +14690,7 @@ async function plugin(bb) {
   });
   bb.agents.registerTool({
     name: "noema_recall",
-    description: `Read a specific Noema memory trace by ID, including its full body. Cortex: ${noemaCortex}.`,
+    description: `Read a specific Noema memory trace by ID, including its full body`,
     parameters: recallSchema,
     async execute({ id }) {
       const result = await client.callTool("noema_recall", { id });
@@ -14698,7 +14699,7 @@ async function plugin(bb) {
   });
   bb.agents.registerTool({
     name: "noema_list",
-    description: `List Noema memory traces, optionally filtered by type, author, tag, or origin. Cortex: ${noemaCortex}.`,
+    description: `List Noema memory traces, optionally filtered by type, author, tag, or origin`,
     parameters: listSchema,
     async execute(args) {
       const clean = {};
@@ -14711,7 +14712,7 @@ async function plugin(bb) {
   });
   bb.agents.registerTool({
     name: "noema_update",
-    description: `Update fields of an existing Noema memory trace. Only provided fields are changed. Cortex: ${noemaCortex}.`,
+    description: `Update fields of an existing Noema memory trace. Only provided fields are changed`,
     parameters: updateSchema,
     async execute(args) {
       const clean = {};
@@ -14724,7 +14725,7 @@ async function plugin(bb) {
   });
   bb.agents.registerTool({
     name: "noema_lineage",
-    description: `Show the derivation graph for a Noema trace: what it was derived from and what derives from it. Cortex: ${noemaCortex}.`,
+    description: `Show the derivation graph for a Noema trace: what it was derived from and what derives from it`,
     parameters: lineageSchema,
     async execute({ id }) {
       const result = await client.callTool("noema_lineage", { id });
