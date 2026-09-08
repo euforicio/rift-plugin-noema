@@ -61,3 +61,8 @@ bb plugin config noema set noemaCortex coding-agents
 ```sh
 bb plugin build
 ```
+
+## Fork provenance
+
+Rift Labs fork: https://github.com/euforicio/rift-plugin-noema
+Upstream: https://github.com/prismatic7/bb-plugin-noema

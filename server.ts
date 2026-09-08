@@ -158,7 +158,7 @@ const lineageSchema = z.object({ id: z.string().min(1).describe("Trace ID to que
 // ─── Plugin entry ────────────────────────────────────────────────────
 
 export default async function plugin(bb: RiftPluginApi) {
-  bb.log.info("bb-plugin-noema loaded");
+  bb.log.info("rift-plugin-noema loaded");
 
   const settings = bb.settings.define({
     noemaHttpUrl: {
@@ -269,6 +269,6 @@ export default async function plugin(bb: RiftPluginApi) {
   // ── Cleanup ──────────────────────────────────────────────────────
 
   bb.onDispose(() => {
-    bb.log.info("bb-plugin-noema disposed");
+    bb.log.info("rift-plugin-noema disposed");
   });
 }
