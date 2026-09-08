@@ -9,7 +9,7 @@
 //
 // Tools call the configured Streamable HTTP MCP endpoint (≥0.20.0) with full
 // session lifecycle management (initialize, re-initialize on 404 expiry).
-import { type BbPluginApi } from "@get-bb/plugin-sdk";
+import { type RiftPluginApi } from "@riftlabs/plugin-sdk";
 import { z } from "zod";
 
 // ─── Noema MCP HTTP client ───────────────────────────────────────────
@@ -157,7 +157,7 @@ const lineageSchema = z.object({ id: z.string().min(1).describe("Trace ID to que
 
 // ─── Plugin entry ────────────────────────────────────────────────────
 
-export default async function plugin(bb: BbPluginApi) {
+export default async function plugin(bb: RiftPluginApi) {
   bb.log.info("bb-plugin-noema loaded");
 
   const settings = bb.settings.define({
